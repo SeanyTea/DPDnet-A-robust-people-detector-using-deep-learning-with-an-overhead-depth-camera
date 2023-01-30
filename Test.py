@@ -31,20 +31,18 @@ from scipy import *
 from utils import *
 import os
 
-#VERSION=0# FULL DPDNET
-VERSION=1# FAST VERSION
+VERSION=0# FAST VERSION
 batch_size = 15
 epochs=40
-aspect_ratio=424/512 #ASPECT RATIO OF KINECT V2
-img_x=256#Kinect V2 half width
+aspect_ratio=240/320 
+img_x=320#
 img_y=round(aspect_ratio*img_x)
-path='GOTPD_DATABASE/'
-lengthdataset=len(os.listdir(path+'train/imagenes'))
+path='GESDPD/'
+lengthdataset=len(os.listdir(path+'TRAIN_DATA/INPUT'))
 
 if(VERSION==0):
 	divider = 1
 	canales = 1
-
 	image_input = Input(shape=(int(img_y / divider), int(img_x / divider), 1))
 	x = Conv2D(64, (7, 7), strides=(2, 2), padding='same', name='conv1')(image_input)
 	x = BatchNormalization(axis=3, name='bn_conv1')(x)
@@ -62,21 +60,23 @@ if(VERSION==0):
 	x = decoding_conv_block(x, 3, [512, 512, 128], stage=6, block='a')
 
 	x = decoding_conv_block(x, 3, [256, 256, 64], stage=7, block='a')
-	x = Cropping2D(cropping=((0, 0), (0, 1)), data_format=None)(x)
+	x = Cropping2D(cropping=((0, 0), (1, 1)), data_format=None)(x)
 
 	x = UpSampling2D(size=(3, 3))(x)
 	x = Conv2DTranspose(64, (7, 7), strides=(2, 2), padding='same', name='co')(x)
-	x = Cropping2D(cropping=((2, 2), (1, 1)), data_format=None)(x)
+	x = Cropping2D(cropping=((0, 0), (2, 2)), data_format=None)(x)
 	x = BatchNormalization(axis=3, name='bn_c1')(x)
 	x = Activation('relu')(x)
 	x = Conv2DTranspose(1, (3, 3), padding='same', name='c8o')(x)
 	x = Activation('sigmoid')(x)
+	
 	x2=tensorflow.keras.backend.concatenate([x,image_input],axis=-1)
 	refinement1 = refunit(divider, canales + 1,img_y,img_x)
-	x2 = refinement1(x2)
+	x2=refinement1(x2)
+
 	model = Model(inputs=image_input, outputs=[x2])
 	model.summary()
-	model.load_weights('DPDnet.h5')
+	model.load_weights('DPDnet3.h5')
 
 
 
@@ -108,7 +108,7 @@ if (VERSION == 1):
 	image_input = Input(shape=(int(img_y / divider), int(img_x / divider), 1))
 	x = Conv2D(64, (7, 7), strides=(2, 2), padding='same', name='conv1')(image_input)
 	x = BatchNormalization(axis=3, name='bn_conv1')(x)
-	x = Activation('relu')(x)
+	x = tf.keras.layers.LeakyReLU(alpha=0.1)(x) #Activation('relu')(x)
 	x = MaxPooling2D((3, 3))(x)
 
 	x = encoding_conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1))
@@ -122,24 +122,28 @@ if (VERSION == 1):
 	x = decoding_conv_block(x, 3, [512, 512, 128], stage=6, block='a')
 
 	x = decoding_conv_block(x, 3, [256, 256, 64], stage=7, block='a')
-	x = Cropping2D(cropping=((1, 1), (1, 1)), data_format=None)(x)
+	x = Cropping2D(cropping=((0, 0), (0, 1)), data_format=None)(x)
 
 	x = UpSampling2D(size=(3, 3))(x)
 	x = Conv2DTranspose(64, (7, 7), strides=(2, 2), padding='same', name='co')(x)
-	x = Cropping2D(cropping=((1, 1), (1, 2)), data_format=None)(x)
+	x = Cropping2D(cropping=((0, 0), (1, 1)), data_format=None)(x)
 	x = BatchNormalization(axis=3, name='bn_c1')(x)
-	x = Activation('relu')(x)
+	x = tf.keras.layers.LeakyReLU(alpha=0.1)(x)
 	x = Conv2DTranspose(1, (3, 3), padding='same', name='c8o')(x)
-	x = Cropping2D(cropping=((0, 0), (1, 0)), data_format=None)(x)
+	#x = Cropping2D(cropping=((0, 0), (1, 0)), data_format=None)(x)
 	x = Activation('sigmoid')(x)
-	x2=tensorflow.keras.backend.concatenate([x,image_input],axis=-1)
+	#x is output
+	x2=tensorflow.keras.backend.concatenate([x,image_input],axis=-1) #Output
 	refinement1 = fastrefunit(divider, canales + 1,img_y,img_x)
-	x2 = refinement1(x2)
+	x2 = refinement1(x2) #x2 is refined output
+	x2 = ZeroPadding2D(padding=((0, 0), (2, 2)), data_format=None)(x2)
+	#add x to x2
+	x2 = x + x2 #This is HRB block
 	model = Model(inputs=image_input, outputs=[x2])
 	model.summary()
 
 	model.compile(optimizer=tensorflow.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, decay=0.0),loss=['mse'])
-	model.load_weights('DPDnet_fast.h5')
+	model.load_weights('DPDnet_fast3.h5')
 
 	[valinput, valoutput] = test(divider, canales,path,img_x,img_y)
 	cv.namedWindow('prediction', cv.WINDOW_NORMAL)
@@ -147,7 +151,7 @@ if (VERSION == 1):
 	cv.namedWindow('output', cv.WINDOW_NORMAL)
 
 	for j in range(1, len(valinput[:, 0, 0, 0]), 1):
-		thresh = 0.3
+		thresh = 0.4
 		predicted = model.predict(valinput[j - 1:j, :, :, :], verbose=0, batch_size=1)
 
 		predicted = predicted / np.max(predicted)

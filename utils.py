@@ -169,6 +169,7 @@ def refunit(divider,ch,img_y,img_x):
     modelo = Model(inputs=image_input, outputs=x)
     modelo.summary()
     return modelo
+
 def fastrefunit(divider,ch,img_y,img_x):
 
     image_input = Input(shape=(int(img_y/divider), int(img_x/divider), ch))
@@ -181,16 +182,44 @@ def fastrefunit(divider,ch,img_y,img_x):
     x = encoding_conv_block(x, 3, [128, 128, 512], stage=3, block='a')
 
     x = decoding_conv_block(x, 3, [512, 512, 128], stage=6, block='a')
+    x = ZeroPadding2D(padding=((0, 0), (0,1)), data_format=None)(x)
+
 
     x = decoding_conv_block(x, 3, [256, 256, 64], stage=7, block='a')
 
     x = UpSampling2D(size=(3, 3))(x)
-    x = Cropping2D(cropping=((1, 1), (2, 2)), data_format=None)(x)
+    x = Cropping2D(cropping=((0,0), (1, 1)), data_format=None)(x)
     x = Conv2DTranspose(1, (3, 3), padding='same', name='c8o')(x)
     x = Activation('sigmoid')(x)
     modelo = Model(inputs=image_input, outputs=x)
     modelo.summary()
     return modelo
+'''
+def fastrefunit(divider,ch,img_y,img_x):
+
+    image_input = Input(shape=(int(img_y/divider), int(img_x/divider), ch))
+    x = Conv2D(64, (7, 7), strides=(2, 2), padding='same', name='conv1')(image_input)
+    x = BatchNormalization(axis=3, name='bn_conv1')(x)
+    x = tf.keras.layers.LeakyReLU(alpha=0.1)(x)
+    x = MaxPooling2D((3, 3))(x)
+
+    x = encoding_conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1))
+    x = encoding_conv_block(x, 3, [128, 128, 512], stage=3, block='a')
+
+    x = decoding_conv_block(x, 3, [512, 512, 128], stage=6, block='a')
+
+    x = decoding_conv_block(x, 3, [256, 256, 64], stage=7, block='a')
+
+    x = UpSampling2D(size=(3, 3))(x)
+    x = Cropping2D(cropping=((0, 0), (0, 0)), data_format=None)(x)
+    x = Conv2DTranspose(1, (3, 3), padding='same', name='c8o')(x)
+    x = Activation('sigmoid')(x)
+    modelo = Model(inputs=image_input, outputs=x)
+    modelo.summary()
+    return modelo
+'''
+
+
 def load_valdata(divider,canales,batch_size,lengthdataset,path,img_y,img_x):
     valinput=[]
     valoutput=[]
@@ -203,7 +232,7 @@ def load_valdata(divider,canales,batch_size,lengthdataset,path,img_y,img_x):
         valinput = []
         valoutput=  []
         for j in range(batch_size*counter+1, batch_size*(counter+1)+1):
-             ind=np.uint16(np.random.rand()*4)
+             ind=np.uint16(np.random.rand()*0)
              j=np.uint16(np.random.rand()*(l3[ind]-5))+1
              img_path = path+l1[ind] % (j)
              imgc = imageio.imread(img_path)
@@ -268,15 +297,15 @@ def test(divider,canales,path,img_x,img_y):
     counter=0
     valinput = []
     valoutput=  []
-    for j in range(1,741,1):
-         img_path = path+"validation/imagenes/seq-P01-M04-A0002-G00-C00-S0101/image%04d.png" % (j)
+    for j in range(1,7531,1):
+         img_path = path+"TRAIN_DATA/INPUT/Image%d.png" % (j)
          imgc = imageio.imread(img_path)
          imgc = cv.resize(imgc, (int(img_x / divider), int(img_y / divider)))
          xc = image.img_to_array(imgc)
          xc = xc / 65536
          valinput.append(xc)
 
-         img_path = path+"validation/gaussianas/seq-P01-M04-A0002-G00-C00-S0101/image%04d.png" % (j)
+         img_path = path+"TRAIN_DATA/OUTPUT/Image%d.png" % (j)
          imgc = image.load_img(img_path, grayscale=True, target_size=(int(img_y/divider), int(img_x/divider), 1))
          xc = image.img_to_array(imgc)
          xc = cv.blur(xc, (3, 3))

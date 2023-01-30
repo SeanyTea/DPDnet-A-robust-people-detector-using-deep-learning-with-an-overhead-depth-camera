@@ -33,7 +33,7 @@ import imageio
 import os
 
 #VERSION=0# FULL DPDNET
-VERSION=0# FAST VERSION
+VERSION=1# FAST VERSION
 batch_size = 15
 epochs=40
 aspect_ratio=240/320 
@@ -71,16 +71,17 @@ if(VERSION==0):
 	x = Activation('relu')(x)
 	x = Conv2DTranspose(1, (3, 3), padding='same', name='c8o')(x)
 	x = Activation('sigmoid')(x)
-	
+
 	x2=tensorflow.keras.backend.concatenate([x,image_input],axis=-1)
 	refinement1 = refunit(divider, canales + 1,img_y,img_x)
 	x2=refinement1(x2)
 	model = Model(inputs=image_input, outputs=[x,x2])
-	#model.summary()
+	model.summary()
 	check = tensorflow.keras.callbacks.ModelCheckpoint('DPDnet.h5', monitor='val_loss', verbose=1, save_best_only=True,save_weights_only=True, mode='auto', period=1)
 	model.compile(optimizer=tensorflow.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, decay=0.0),loss=['mse','mse'])
 	#[valinput,valoutput]=load_valdata(divider,canales)
 	trainlossactual = model.fit_generator(TrainGen(divider, canales,batch_size,lengthdataset,path,img_y,img_x), callbacks=[check],steps_per_epoch=math.floor(lengthdataset / batch_size),validation_data=load_valdata(divider, canales,batch_size,lengthdataset,path,img_y,img_x), validation_steps=1000,epochs=epochs, verbose=1)
+
 
 	
 if (VERSION == 1):
@@ -103,30 +104,28 @@ if (VERSION == 1):
 	x = decoding_conv_block(x, 3, [512, 512, 128], stage=6, block='a')
 
 	x = decoding_conv_block(x, 3, [256, 256, 64], stage=7, block='a')
-	x = Cropping2D(cropping=((1, 1), (1, 1)), data_format=None)(x)
+	x = Cropping2D(cropping=((0, 0), (0, 1)), data_format=None)(x)
 
 	x = UpSampling2D(size=(3, 3))(x)
 	x = Conv2DTranspose(64, (7, 7), strides=(2, 2), padding='same', name='co')(x)
-	x = Cropping2D(cropping=((1, 1), (1, 2)), data_format=None)(x)
+	x = Cropping2D(cropping=((0, 0), (0, 2)), data_format=None)(x)
 	x = BatchNormalization(axis=3, name='bn_c1')(x)
 	x = Activation('relu')(x)
 	x = Conv2DTranspose(1, (3, 3), padding='same', name='c8o')(x)
-	x = Cropping2D(cropping=((0, 0), (1, 0)), data_format=None)(x)
+	#x = Cropping2D(cropping=((0, 0), (1, 0)), data_format=None)(x)
 	x = Activation('sigmoid')(x)
-	model = Model(inputs=image_input, outputs=[x])#, x2])
-	model.summary()
-	'''
+
 	x2=tensorflow.keras.backend.concatenate([x,image_input],axis=-1)
 	refinement1 = fastrefunit(divider, canales + 1,img_y,img_x)
 	x2 = refinement1(x2)
 	model = Model(inputs=image_input, outputs=[x, x2])
-	model.summary()
+	#model.summary()
 
 	check = tensorflow.keras.callbacks.ModelCheckpoint('DPDnet_fast.h5', monitor='val_loss', verbose=1, save_best_only=True,save_weights_only=True, mode='auto', period=1)
 	model.compile(optimizer=tensorflow.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, decay=0.0),loss=['mse', 'mse'])
 	trainlossactual = model.fit_generator(TrainGen(divider, canales,batch_size,lengthdataset,path,img_y,img_x), callbacks=[check],steps_per_epoch=math.floor(lengthdataset / batch_size),validation_data=load_valdata(divider, canales,batch_size,lengthdataset,path,img_y,img_x), validation_steps=1000,epochs=epochs, verbose=1)
 
-	'''
+	
 	
 
 
