@@ -160,10 +160,10 @@ def refunit(divider,ch,img_y,img_x):
     x = decoding_conv_block(x, 3, [512, 512, 128], stage=6, block='a')
 
     x = decoding_conv_block(x, 3, [256, 256, 64], stage=7, block='a')
-    x=ZeroPadding2D(padding=(0,1),data_format=None)(x)
+    #x=ZeroPadding2D(padding=(0,1),data_format=None)(x)
 
     x = UpSampling2D(size=(3, 3))(x)
-    x = Cropping2D(cropping=((2, 2), (1, 1)), data_format=None)(x)
+    x = Cropping2D(cropping=((0, 0), (2, 2)), data_format=None)(x)
     x = Conv2DTranspose(1, (3, 3), padding='same', name='c8o')(x)
     x = Activation('sigmoid')(x)
     modelo = Model(inputs=image_input, outputs=x)
@@ -196,15 +196,15 @@ def load_valdata(divider,canales,batch_size,lengthdataset,path,img_y,img_x):
     valoutput=[]
     multiplier=6
     counter=0
-    l1=["validation/imagenes/seq-P01-M04-A0002-G00-C00-S0101/image%04d.png","validation/imagenes/seq-P05-M04-A0001-G03-C00-S0030/image%04d.png","validation/imagenes/seq-P00-M02-A0032-G00-C00-S0037/image%04d.png","validation/imagenes/seq-P00-M02-A0032-G00-C00-S0036/image%04d.png"]
-    l2=["validation/gaussianas/seq-P01-M04-A0002-G00-C00-S0101/image%04d.png","validation/gaussianas/seq-P05-M04-A0001-G03-C00-S0030/image%04d.png","validation/gaussianas/seq-P00-M02-A0032-G00-C00-S0037/image%04d.png","validation/gaussianas/seq-P00-M02-A0032-G00-C00-S0036/image%04d.png"]
-    l3=[741,509,920,868]
+    l1=["VAL_DATA/INPUT/Image%d.png"]#,"validation/imagenes/seq-P05-M04-A0001-G03-C00-S0030/image%04d.png","validation/imagenes/seq-P00-M02-A0032-G00-C00-S0037/image%04d.png","validation/imagenes/seq-P00-M02-A0032-G00-C00-S0036/image%04d.png"]
+    l2=["VAL_DATA/OUTPUT/Image%d.png"]#seq-P01-M04-A0002-G00-C00-S0101/image%04d.png","validation/gaussianas/seq-P05-M04-A0001-G03-C00-S0030/image%04d.png","validation/gaussianas/seq-P00-M02-A0032-G00-C00-S0037/image%04d.png","validation/gaussianas/seq-P00-M02-A0032-G00-C00-S0036/image%04d.png"]
+    l3=[7531]
     while 1:
         valinput = []
         valoutput=  []
         for j in range(batch_size*counter+1, batch_size*(counter+1)+1):
-             ind=np.uint16(rand()*4)
-             j=np.uint16(rand()*(l3[ind]-5))+1
+             ind=np.uint16(np.random.rand()*4)
+             j=np.uint16(np.random.rand()*(l3[ind]-5))+1
              img_path = path+l1[ind] % (j)
              imgc = imageio.imread(img_path)
              imgc = cv.resize(imgc, (int(img_x/divider), int(img_y/divider)))
@@ -231,8 +231,8 @@ def TrainGen(divider,canales,batch_size,lengthdataset,path,img_y,img_x):
         X = []
         Y=  []
         for j in range(batch_size*counter+1, batch_size*(counter+1)+1):
-            j=math.floor(rand()*(lengthdataset-5))+1
-            img_path = path+"train/imagenes/image%05d.png" % (j)
+            j=math.floor(np.random.rand()*(lengthdataset-5))+1
+            img_path = path+"TRAIN_DATA/INPUT/Image%d.png" % (j)
             imgc = imageio.imread(img_path)
             imgc = cv.resize(imgc, (int(img_x / divider), int(img_y / divider)))
             xc = image.img_to_array(imgc)
@@ -241,7 +241,7 @@ def TrainGen(divider,canales,batch_size,lengthdataset,path,img_y,img_x):
                 xc = np.asarray(np.dstack((xc, xc, xc)), dtype=np.float64)
             X.append(xc)
 
-            img_path = path+"train/gaussianas/image%05d.png" % (j)
+            img_path = path+"TRAIN_DATA/OUTPUT/Image%d.png" % (j)
             imgc = image.load_img(img_path, grayscale=True, target_size=(int(img_y/divider), int(img_x/divider), 1))
             xc = image.img_to_array(imgc)
             xc = cv.blur(xc, (3, 3))
