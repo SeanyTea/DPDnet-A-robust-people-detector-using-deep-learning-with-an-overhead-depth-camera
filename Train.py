@@ -39,9 +39,18 @@ epochs=40
 aspect_ratio=240/320 
 img_x=320#
 img_y=round(aspect_ratio*img_x)
-path='GESDPD/'
+path='/content/DPDnet-A-robust-people-detector-using-deep-learning-with-an-overhead-depth-camera/GESDPD/'
 lengthdataset=len(os.listdir(path+'TRAIN_DATA/INPUT'))
+def custom_mse(y_true,y_pred):
+	lmbda_1 = 1
+	lmbda_2 = 1.3
+	y_true_pos = tf.cast(y_true > 0, y_true.dtype) * y_true
+	y_true_neg = tf.cast(y_true <=0,y_true.dtype) * y_true
+	y_pred_pos = tf.cast(y_pred > 0, y_pred.dtype) * y_pred
+	y_pred_neg = tf.cast(y_pred <=0,y_pred.dtype) * y_pred
 
+	loss = lmbda_1*K.mean(K.square(y_true_pos-y_pred_pos)) + lmbda_2*K.mean(K.square(y_true_neg-y_pred_neg))
+	return loss
 if(VERSION==0):
 	divider = 1
 	canales = 1
@@ -50,7 +59,7 @@ if(VERSION==0):
 	x = BatchNormalization(axis=3, name='bn_conv1')(x)
 	x = Activation('relu')(x)
 	x = MaxPooling2D((3, 3))(x)
-
+	x = Dropout(0.25)(x)
 	x = encoding_conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1))
 
 	x = encoding_conv_block(x, 3, [128, 128, 512], stage=3, block='a')
@@ -69,6 +78,7 @@ if(VERSION==0):
 	x = Cropping2D(cropping=((0, 0), (2, 2)), data_format=None)(x)
 	x = BatchNormalization(axis=3, name='bn_c1')(x)
 	x = Activation('relu')(x)
+	x = Dropout(0.25)(x)
 	x = Conv2DTranspose(1, (3, 3), padding='same', name='c8o')(x)
 	x = Activation('sigmoid')(x)
 
@@ -92,7 +102,7 @@ if (VERSION == 1):
 	x = BatchNormalization(axis=3, name='bn_conv1')(x)
 	x = Activation('relu')(x)
 	x = MaxPooling2D((3, 3))(x)
-
+	x = Dropout(0.25)(x)
 	x = encoding_conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1))
 
 	x = encoding_conv_block(x, 3, [128, 128, 512], stage=3, block='a')
@@ -111,6 +121,7 @@ if (VERSION == 1):
 	x = Cropping2D(cropping=((0, 0), (0, 2)), data_format=None)(x)
 	x = BatchNormalization(axis=3, name='bn_c1')(x)
 	x = Activation('relu')(x)
+	x = Dropout(0.25)(x)
 	x = Conv2DTranspose(1, (3, 3), padding='same', name='c8o')(x)
 	#x = Cropping2D(cropping=((0, 0), (1, 0)), data_format=None)(x)
 	x = Activation('sigmoid')(x)
